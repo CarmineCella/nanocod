@@ -2,6 +2,9 @@
 
 #ifndef PVOCLIB_H
 #define PVOCLIB_H
+
+#include <cmath>
+
 const double TWOPI = M_PI * 2.;
 
 void make_Window (float* out, int N, float a0, float a1, float a2) {
