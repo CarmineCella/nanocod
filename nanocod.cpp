@@ -13,8 +13,8 @@ int main (int argc, char* argv[]) {
     cout << "nanocod, ver. 0.1" << endl << endl;
 
     try {
-        if (argc != 6) {
-            throw runtime_error ("syntax: nancod input.wav output.wav tstretch pshift denoise");
+        if (argc != 8) {
+            throw runtime_error ("syntax: nancod input.wav output.wav nfft hop tstretch pshift denoise");
             return 0;
         }
 
@@ -25,16 +25,30 @@ int main (int argc, char* argv[]) {
         int nbits = input.getNumBits ();
         float sr = input.getSampleRate ();
 
-        int nfft = 4096;
-        float ohop = 256;
+        int nfft = atol (argv[3]);
+        float ohop = atol (argv[4]);
         float oolap = nfft / ohop;
 
-        float tstretch = atof (argv[3]);
+        float tstretch = atof (argv[5]);
         float hop = ohop / tstretch;
         float olap = nfft / hop;
 
-        float pshift = atof (argv[4]);
-        float threshold = atof (argv[5]);
+        float pshift = atof (argv[6]);
+        float threshold = atof (argv[7]);
+
+        // error check
+        if ((((~nfft + 1) & nfft) != nfft) || nfft < 2) { // check pow 2
+           throw runtime_error ("fft size must be a power of two");
+        }
+        if (hop <= 0) {
+            throw runtime_error ("invalid hop size");
+        }
+        if (tstretch <= 0) {
+            throw runtime_error ("invalid time strecth");
+        }
+        if (pshift <= 0) {
+            throw runtime_error ("invalid pitch shift");
+        }        
 
         cout << "sr      : " << sr << endl;
         cout << "samples : " << samps << endl;
@@ -55,7 +69,6 @@ int main (int argc, char* argv[]) {
 
         float* obuffer = new float[(int) ((float) samps * nchans * tstretch) + nfft];
         int v = (int) ((float) samps * nchans * tstretch) + nfft;
-        cout << "v = "  << v << endl;
         memset (obuffer, 0, sizeof (float) * v);
 
         float* wksp = new float[2 * nfft];
