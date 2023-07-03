@@ -13,8 +13,8 @@ int main (int argc, char* argv[]) {
     cout << "nanocod, ver. 0.1" << endl << endl;
 
     try {
-        if (argc != 8) {
-            throw runtime_error ("syntax: nancod input.wav output.wav nfft hop tstretch pshift denoise");
+        if (argc != 9) {
+            throw runtime_error ("syntax: nancod input.wav output.wav nfft hop tstretch pshift denoise tau");
             return 0;
         }
 
@@ -35,6 +35,8 @@ int main (int argc, char* argv[]) {
 
         float pshift = atof (argv[6]);
         float threshold = atof (argv[7]);
+        float tau = atof (argv[8]);
+        float feedback = pow (10.0, (-3.0 * (float) ohop / (tau * sr)));
 
         // error check
         if ((((~nfft + 1) & nfft) != nfft) || nfft < 2) { // check pow 2
@@ -49,6 +51,9 @@ int main (int argc, char* argv[]) {
         if (pshift <= 0) {
             throw runtime_error ("invalid pitch shift");
         }        
+        if (feedback < 0 || feedback >= 1) {
+            throw runtime_error ("invalid feedaback");
+        }                
 
         cout << "sr      : " << sr << endl;
         cout << "samples : " << samps << endl;
@@ -57,6 +62,7 @@ int main (int argc, char* argv[]) {
         cout << "stretch : " << tstretch << endl;
         cout << "shift   : " << pshift << endl;
         cout << "denoise : " << threshold << endl;
+        cout << "tau     : " << tau << " (feedback: " << feedback << ")" << endl;
         cout << "nfft    : " << nfft << endl;
         cout << "in olap : " << olap << endl;
         cout << "out olap: " << oolap << endl << endl;
@@ -67,9 +73,9 @@ int main (int argc, char* argv[]) {
         float* buffer = new float[samps * nchans + nfft];
         input.read (buffer, samps * nchans);
 
-        float* obuffer = new float[(int) ((float) samps * nchans * tstretch) + nfft];
-        int v = (int) ((float) samps * nchans * tstretch) + nfft;
-        memset (obuffer, 0, sizeof (float) * v);
+        int osamps = (int) ((float)  samps * nchans * tstretch) + nfft + (int) (tau * sr / nchans);
+        float* obuffer = new float[osamps];
+        memset (obuffer, 0, sizeof (float) * osamps);
 
         float* wksp = new float[2 * nfft];
         float* amp = new float[nfft];
@@ -78,6 +84,9 @@ int main (int argc, char* argv[]) {
         float* ofreq = new float[nfft];
         float* phi = new float[nfft];
         float* ophi = new float[nfft];
+
+        float* delay_amp = new float[nfft];
+        float* delay_freq = new float[nfft];
 
         float imax = 0;
         for (int i = 0; i < samps * nchans; ++i) {
@@ -96,13 +105,19 @@ int main (int argc, char* argv[]) {
             float opointer = 0;
             memset (phi, 0, sizeof (float) * nfft);
             memset (ophi, 0, sizeof (float) * nfft);
+            memset (delay_amp, 0, sizeof (float) * nfft);
+            memset (delay_freq, 0, sizeof (float) * nfft);
 
-            while (pointer < samps) {
-                for (int i = (int) pointer; i < (int) pointer + nfft; ++i) {
-                    int rpos = (int) (nchans * i + j);
-                    wksp[2 * (i - (int) pointer)] = buffer[rpos] * window[i - (int) pointer];
-                    wksp[2 * (i - (int) pointer) + 1] = 0.;
+            while (pointer < osamps) {
+                memset (wksp, 0, sizeof (float) * 2 * nfft);
+                if (pointer < samps) {
+                    for (int i = (int) pointer; i < (int) pointer + nfft; ++i) {
+                        int rpos = (int) (nchans * i + j);
+                        wksp[2 * (i - (int) pointer)] = buffer[rpos] * window[i - (int) pointer];
+                        wksp[2 * (i - (int) pointer) + 1] = 0.;
+                    }
                 }
+
                 fft (wksp, nfft, -1);
                 convert (wksp, amp, freq, phi, nfft, hop, sr);
                 
@@ -124,12 +139,19 @@ int main (int argc, char* argv[]) {
                     }
                 }
 
+                for (int i = 0; i < nfft; ++i) {
+                    oamp[i] += delay_amp[i] * feedback;
+                    ofreq[i] += delay_freq[i] * feedback;
+                    delay_amp[i] = oamp[i];
+                    delay_freq[i] = ofreq[i];
+                }
+
                 unconvert (oamp, ofreq, ophi, wksp, nfft, ohop, sr);
                 fft (wksp, nfft, 1);
 
                 for (int i = (int) opointer; i < (int) (opointer + nfft); ++i) {
                     int wpos = nchans * i + j;
-                    if (wpos > v) break;
+                    if (wpos > osamps) break;
                     obuffer[wpos] += (wksp[2 * (i - (int) opointer)] * window[i - (int) (opointer)]);
                 }
 
@@ -145,13 +167,14 @@ int main (int argc, char* argv[]) {
         }
 
         // normalization
-        for (int i = 0; i < (int) (samps * nchans * tstretch); ++i) {
+        for (int i = 0; i < osamps; ++i) {
             obuffer[i] *= (imax / omax);
         }
 
         // save audio output file
         WavOutFile output (argv[2], sr, nbits, nchans);
-        output.write (obuffer, (int) (samps * nchans * tstretch));
+        output.write (obuffer, osamps);
+
         delete [] buffer;
         delete [] obuffer;
         delete [] wksp;
