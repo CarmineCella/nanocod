@@ -25,7 +25,7 @@ int main (int argc, char* argv[]) {
         int nbits = input.getNumBits ();
         float sr = input.getSampleRate ();
 
-        int nfft = 2048;
+        int nfft = 1024;
         float ohop = 256;
         float oolap = nfft / ohop;
 
@@ -46,7 +46,7 @@ int main (int argc, char* argv[]) {
         float* buffer = new float[samps * nchans + nfft];
         input.read (buffer, samps * nchans);
 
-        float* obuffer = new float[(int) ((float) samps * nchans * tstretch) + nfft];
+        float* obuffer = new float[(int) ((float) 2* samps * nchans * tstretch) + nfft];
         memset (obuffer, 0, sizeof (float) * samps + nchans + nfft);
 
         float* wksp = new float[2 * nfft];
