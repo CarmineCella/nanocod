@@ -39,7 +39,7 @@ CFLAGS := -std=c11
 # C++ flags
 CXXFLAGS := -std=c++11
 # C/C++ flags
-CPPFLAGS := -g -Wall -Wextra -pedantic
+CPPFLAGS := -O2 -Wall
 # linker flags
 LDFLAGS :=
 # linker flags: libraries to link (e.g. -lfoo)
