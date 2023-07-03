@@ -79,9 +79,9 @@ int main (int argc, char* argv[]) {
         float* phi = new float[nfft];
         float* ophi = new float[nfft];
 
-        float norm = 0;
+        float imax = 0;
         for (int i = 0; i < samps * nchans; ++i) {
-            if (buffer[i] > norm) norm = buffer[i];
+            if (buffer[i] > imax) imax = buffer[i];
         }
 
         // for each channel
@@ -139,14 +139,14 @@ int main (int argc, char* argv[]) {
         }
         cout << "done" << endl;
 
-        float onorm = 0;
+        float omax = 0;
          for (int i = 0; i < samps * nchans; ++i) {
-            if (obuffer[i] > onorm) onorm = obuffer[i];
+            if (obuffer[i] > omax) omax = obuffer[i];
         }
 
         // normalization
         for (int i = 0; i < (int) (samps * nchans * tstretch); ++i) {
-            obuffer[i] *= (norm / onorm);
+            obuffer[i] *= (imax / omax);
         }
 
         // save audio output file
@@ -156,7 +156,13 @@ int main (int argc, char* argv[]) {
         delete [] obuffer;
         delete [] wksp;
         delete [] window;
-        
+        delete [] amp;
+        delete [] freq;
+        delete [] oamp;
+        delete [] ofreq;
+        delete [] phi;
+        delete [] ophi;
+
     } catch (exception& e) {
         cout << "error: " << e.what () << endl;
     } catch (...) {
