@@ -16,7 +16,8 @@ int main (int argc, char* argv[]) {
 
     try {
         if (argc != 8) {
-            throw runtime_error ("syntax: nancod input.wav output.wav nfft hop tstretch pshift denoise");
+            throw runtime_error (
+                "syntax: nancod input.wav output.wav nfft hop tstretch pshift denoise");
             return 0;
         }
 
